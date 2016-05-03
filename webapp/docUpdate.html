@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="renderer" content="webkit">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,Chrome=1">
+
+    <title>消防文档管理系统-文档管理</title>
+
+    <link href="content/css/bootstrap.min.css" rel="stylesheet" >
+    <link href="content/css/font-awesome.min.css" rel="stylesheet" >
+    <link href="content/css/sy.css" rel="stylesheet" >
+
+    <link href="content/css/maneger.css" rel="stylesheet" >
+    <link rel="stylesheet" type="text/css" href="content/upfile/uploadify.css">
+
+    <!-- 引入jquery -->
+    <script src="content/js/jquery-1.12.1.min.js"></script>
+    <script type="text/javascript" src="content/upfile/jquery.uploadify.js"></script>
+
+    <!--[if lt IE 9]>
+    <script src="content/js/html5shiv.min.js"></script>
+    <script src="content/js/respond.min.js"></script>
+    <![endif]-->
+    <script>
+        $(document).ready(function() {
+            $("#file_upload").uploadify({
+                'swf' : 'content/upfile/uploadify.swf',//控件flash文件位置
+                'uploader' : 'doc/upload.action;jsessionid=<%=session.getId()%>',  //后台处理的请求（也就是action请求路径），后面追加了jsessionid，用来标示使用当前session（默认是打开新的session，会导致存在session校验的请求中产生302错误）
+                'queueID' : 'queue',//与下面HTML的div.id对应
+                'width' : '254',//按钮宽度
+                'height' : '65',//按钮高度
+                'fileTypeDesc' : '指定类型文件',
+                'fileTypeExts' : '*.doc;*.docx;*.pdf;*.txt;', //控制可上传文件的扩展名，启用本项时需同时声明fileDesc
+                'fileObjName' : 'upload_file',//文件对象名称,用于后台获取文件对象时使用,详见下面的java代码
+                'buttonText' : '批量上传',//上传按钮显示内容，还有个属性可以设置按钮的背景图片
+                'fileSizeLimit' : '10240KB',
+                'multi' : false,
+                'overrideEvents' : [ 'onDialogClose', 'onUploadSuccess', 'onUploadError', 'onSelectError' ],//重写默认方法
+                'onFallback' : function() {//检测FLASH失败调用
+                    alert("您未安装FLASH控件，无法上传图片！请安装FLASH控件后再试。");
+                },
+                //以下方法是对应overrideEvents的重载方法，具体实现是网上找到的一个别的朋友的代码，
+                //我把这些方法抽到了一个自定义js中，我会在最后面贴出来
+                'onSelect' : uploadify_onSelect,
+                'onSelectError' : uploadify_onSelectError,
+                'onUploadError' : uploadify_onUploadError,
+                'onUploadSuccess' : uploadify_onUploadSuccess
+            });
+        });
+
+        var uploadify_onSelectError = function(file, errorCode, errorMsg) {
+            var msgText = "上传失败\n";
+            switch (errorCode) {
+                case SWFUpload.QUEUE_ERROR.QUEUE_LIMIT_EXCEEDED:
+                    // this.queueData.errorMsg = "每次最多上传 " +
+                    // this.settings.queueSizeLimit + "个文件";
+                    msgText += "上传的文件数量已经超出系统限制的" + $('#file_upload').uploadify('settings', 'queueSizeLimit') + "个文件！";
+                    break;
+                case SWFUpload.QUEUE_ERROR.FILE_EXCEEDS_SIZE_LIMIT:
+                    msgText += "文件 [" + file.name + "] 大小超出系统限制的" + $('#file_upload').uploadify('settings', 'fileSizeLimit') + "大小！";
+                    break;
+                case SWFUpload.QUEUE_ERROR.ZERO_BYTE_FILE:
+                    msgText += "文件大小为0";
+                    break;
+                case SWFUpload.QUEUE_ERROR.INVALID_FILETYPE:
+                    msgText += "文件格式不正确，仅限 " + this.settings.fileTypeExts;
+                    break;
+                default:
+                    msgText += "错误代码：" + errorCode + "\n" + errorMsg;
+            }
+            alert(msgText);
+        };
+
+        var uploadify_onUploadError = function(file, errorCode, errorMsg, errorString) {
+            // 手工取消不弹出提示
+            if (errorCode == SWFUpload.UPLOAD_ERROR.FILE_CANCELLED || errorCode == SWFUpload.UPLOAD_ERROR.UPLOAD_STOPPED) {
+                return;
+            }
+            var msgText = "上传失败\n";
+            switch (errorCode) {
+                case SWFUpload.UPLOAD_ERROR.HTTP_ERROR:
+                    msgText += "HTTP 错误\n" + errorMsg;
+                    break;
+                case SWFUpload.UPLOAD_ERROR.MISSING_UPLOAD_URL:
+                    msgText += "上传文件丢失，请重新上传";
+                    break;
+                case SWFUpload.UPLOAD_ERROR.IO_ERROR:
+                    msgText += "IO错误";
+                    break;
+                case SWFUpload.UPLOAD_ERROR.SECURITY_ERROR:
+                    msgText += "安全性错误\n" + errorMsg;
+                    break;
+                case SWFUpload.UPLOAD_ERROR.UPLOAD_LIMIT_EXCEEDED:
+                    msgText += "每次最多上传 " + this.settings.uploadLimit + "个";
+                    break;
+                case SWFUpload.UPLOAD_ERROR.UPLOAD_FAILED:
+                    msgText += errorMsg;
+                    break;
+                case SWFUpload.UPLOAD_ERROR.SPECIFIED_FILE_ID_NOT_FOUND:
+                    msgText += "找不到指定文件，请重新操作";
+                    break;
+                case SWFUpload.UPLOAD_ERROR.FILE_VALIDATION_FAILED:
+                    msgText += "参数错误";
+                    break;
+                default:
+                    msgText += "文件:" + file.name + "\n错误码:" + errorCode + "\n" + errorMsg + "\n" + errorString;
+            }
+            alert(msgText);
+        }
+
+        var uploadify_onSelect = function(file) {
+            alert(file.name);
+        };
+
+        var uploadify_onUploadSuccess = function(file, data, response) {
+            alert("保存每个文件上传后台返回的相关信息,在onQueueComplete方法中展示");
+        };
+
+        var uploadify_onQueueComplete = function(){
+            alert("全部完成-->并展示提示信息");
+        }
+    </script>
+</head>
+<body>
+    <!-- 搜索 -->
+    <div class="container-fluid">
+        <div class="container">
+            <div class="row" style="height: 118px;">
+                <div class="col-lg-3 visible-lg" style="height: 100%; line-height:118px;">
+                    <p class="text-danger visible-lg" style="width:100%; font-size: 32px;"><strong>消防文档</strong><small style="font-size:20px;"> [广州]</small></p>
+                    <p class="text-danger text-center hidden-lg" style="width:100%; font-size: 34px;"><strong>消防文档</strong><small style="font-size:20px;"> [广州]</small></p>
+                </div>
+
+                <div class="col-lg-7 col-xs-12" style="height: 100%;">
+                    <form>
+                        <div class="col-lg-10" style="margin-top: 30px;">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Search">
+                                    <span class="input-group-btn">
+                                        <button class="btn btn-default" type="submit" > 搜索</button>
+                                    </span>
+                            </div>
+                            <div style="margin-top: 5px; margin-left: -20px;">
+                                <label class="checkbox-inline">
+                                    <input class="myradio" type="radio" name="optionsRadiosinline" id="optionsRadios1" value="option1" checked> 全部
+                                </label>
+
+                                <label class="checkbox-inline">
+                                    <input type="radio" name="optionsRadiosinline" id="optionsRadios2" value="option2"> DOC
+                                </label>
+
+                                <label class="checkbox-inline">
+                                    <input type="radio" name="optionsRadiosinline" id="optionsRadios3" value="option3"> PPT
+                                </label>
+
+                                <label class="checkbox-inline">
+                                    <input type="radio" name="optionsRadiosinline" id="optionsRadios4" value="option4"> TXT
+                                </label>
+
+                                <label class="checkbox-inline">
+                                    <input type="radio" name="optionsRadiosinline" id="optionsRadios5" value="option5"> PDF
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="btn_exit" class="col-lg-2 pull-right visible-lg" style="height: 100%; line-height:118px;">
+                    <p class="text-danger text-center" style="width:100%; font-size: 20px;"><strong>手机客户端下载</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导航 -->
+    <div class="container-fluid" style="background-color: #d33a3a; height: 50px;">
+        <div class="container">
+            <nav class="navbar navbar-inverse" role="navigation" style="border: none; background-color: #d33a3a;">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#main-navbar-collapse">
+                        <span class="sr-only">切换导航</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand visible-xs" href="#">消防文档</a>
+                </div>
+                <div class="collapse navbar-collapse" id="main-navbar-collapse" style="margin: auto -15px auto -15px;">
+                    <ul class="nav navbar-nav" style="width: 100%;">
+                        <li class="nav-current"><a href="#">首页</a></li>
+                        <li><a href="#">文档管理</a></li>
+                        <li><a href="#">分类管理</a></li>
+                        <li><a href="#">个人中心</a></li>
+                        <li class="navbar-right">
+                            <ul class="nav navbar-nav">
+                                <li><a href="#">系统运维</a></li>
+                                <li><a href="#">退出系统</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- 内容 -->
+    <div class="container" style="margin-top: 15px;">
+        <div class="row">
+            <div class="col-xs-12">
+                <ol class="breadcrumb">
+                    <li><a href="#">文档管理</a></li>
+                    <li class="active">文档上传</li>
+                </ol>
+            </div>
+            <div class="col-xs-12">
+                <h2 style="color:#1aa79b;margin-top: 10px;">上传文档<small> 完成两步, 即可上传文档</small></h2>
+            </div>
+
+            <div class="col-xs-12" style="border:1px #cdcdcd solid;min-height: 500px;margin-left: 15px; margin-right: 15px;background-color: #fff;">
+                <!--第一步-->
+                <div class="container" id="onePage">
+                    <div class="row">
+                        <div class="col-xs-12 text-center upload-steps">
+                            <div class="step-num" style="margin: 10px auto 0;">1</div>
+                            <span class="steptip">选择文档</span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-6 col-lg-offset-3 text-center col-sm-8 col-sm-offset-2" style="border: 1px dashed #a1a1a1;background-color: #fafafa;height: 200px;padding-top: 50px;">
+                            <!--<button class="btn btn-info btn-lg" style="font-size: 32px;"><i class="fa fa-upload"></i>上传我的文档</button>-->
+                            <form enctype="multipart/form-data;charset=utf-8" style="margin: inherit;">
+                                <div id="queue" style="display: none;"></div><!-上传队列展示区-->
+                                <input id="file_upload" name="file_upload" type="file" multiple="true"><!--批量上传按钮-->
+                            </form>
+                            <p style="margin-top: 5px; font-size: 18px;">支持的文件格式: <i class="fa fa-file-word-o"></i>word   <i class="fa fa-file-pdf-o"></i></i>pdf   <i class="fa fa-file-powerpoint-o"></i>ppt   <i class="fa fa-file-text-o"></i>text</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!--第二步-->
+                <div class="container" id="twoPage">
+                    <div class="row">
+                        <div class="col-xs-12 text-center upload-steps">
+                            <div class="step-num" style="margin: 10px auto 0;">2</div>
+                            <span class="steptip">补充信息</span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-xs-12" style="margin-left:-16px;border: 1px #cdcdcd solid;background-color: #fafafa; height: 90px;">
+                            <p style="float: left;margin-top: 20px;">
+                                <span style="font-size: 20px;"><strong>请补充文档信息, 完成上传</strong><br></span>
+                                <span style="font-size: 15px;">审核通过后, 文档将显示在文档平台中</span>
+                            </p>
+                            <button class="btn btn-info btn-lg" style="float: right; margin-top: 22px;"><i class="fa fa-sign-out"></i>确认上传</button>
+                        </div>
+                    </div>
+
+                    <div class="row" style="padding-top: 30px;padding-bottom: 30px;">
+                        <div class="col-md-8 col-md-offset-2">
+                            <form class="form-horizontal" role="form">
+                                <div class="form-group">
+                                    <label for="doc_title" class="col-sm-2 control-label">* 标题</label>
+                                    <div class="col-sm-10">
+                                        <input type="text" class="form-control" id="doc_title" placeholder="请输入文档标题">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="doc_mark" class="col-sm-2 control-label">标签</label>
+                                    <div class="col-sm-10">
+                                        <input type="text" class="form-control" id="doc_mark" placeholder="多个标签用逗号隔开">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="doc_decript" class="col-sm-2 control-label">简介</label>
+                                    <div class="col-sm-10">
+                                        <textarea class="form-control" id="doc_decript" rows="5"></textarea>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="doc_decript" class="col-sm-2 control-label">分类</label>
+                                    <div class="col-sm-5">
+                                        <select class="form-control">
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-sm-5">
+                                        <select class="form-control">
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                            <option>国家政策</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!--第三步-->
+                <div class="container" id="twoPage">
+                    <div class="row">
+                        <div class="col-xs-12 text-center upload-steps">
+                            <div class="step-num" style="margin: 10px auto 0;">3</div>
+                            <span class="steptip">完成上传</span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-xs-12 text-center" style="margin-left:-16px;border: 1px #cdcdcd solid;background-color: #fafafa; padding: 30px;">
+                            <h3 style="font-size: 22px; margin-top: 0px;"><i class="fa fa-check-circle fa-lg"></i><strong> 文档上传成功~^_^~</strong><br></h3>
+                            <h3 style="font-size: 15px;">审核通过后, 文档将显示在文档平台中</h3>
+                            <button class="btn btn-info btn-lg"><i class="fa fa-sign-out"></i>继续上传</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer container-fluid" style="margin-top: 20px;padding-top:20px; padding-bottom: 20px; border-top: 5px solid #d33a3a;">
+        <label style="width: 100%; color: #9d9d9d; font-size: 13px; text-align: center;">版权所有© 2016中华人民共和国公安局交通管理局</label><br/>
+        <label style="width: 100%; color: #9d9d9d; font-size: 13px; text-align: center;">著作权号: 中华人民共和国国家版权局2011SR012287</label><br/>
+        <label style="width: 100%; color: #9d9d9d; font-size: 13px; text-align: center;">技术支持: 广州市国迈科技有限公司 支持电话: 020-2839 8008</label><br/>
+        <label style="width: 100%; color: #9d9d9d; font-size: 13px; text-align: center;">软件版本号: V2.2.0 发布日期: 2016-01-01</label><br/>
+    </div>
+
+    <!-- 引入bootstrap脚本 -->
+    <script src="content/js/bootstrap.min.js"></script>
+
+    <script type="text/javascript" src="content/js/security.js"></script>
+    <script type="text/javascript" src="content/js/md5.js"></script>
+    <script type="text/javascript" src="content/js/header/header.js"></script>
+
+    <!-- IE8 实现输入框未输入时显示提示语句 -->
+    <script src="content/js/jquery.placeholder.js"></script>
+    <script>
+        $(function () {
+            $('input, textarea').placeholder();
+        });
+    </script>
+</body>
+</html>
