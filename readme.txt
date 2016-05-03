@@ -1,1 +1,1 @@
-this a test gmdoc file
+gmdoc is goldmsg project
